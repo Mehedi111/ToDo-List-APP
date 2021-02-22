@@ -1,7 +1,6 @@
 package com.ms.to_dolistapp.data
 
 import androidx.room.*
-import com.ms.to_dolistapp.ui.tasks.SortOrder
 import kotlinx.coroutines.flow.Flow
 
 /**
