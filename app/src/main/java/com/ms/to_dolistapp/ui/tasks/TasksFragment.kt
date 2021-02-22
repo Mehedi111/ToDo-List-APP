@@ -9,12 +9,19 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
 import com.ms.to_dolistapp.R
 import com.ms.to_dolistapp.data.SortOrder
+import com.ms.to_dolistapp.data.Task
 import com.ms.to_dolistapp.databinding.FragmentTasksBinding
+import com.ms.to_dolistapp.utils.exhaustive
 import com.ms.to_dolistapp.utils.onQueryTextChanged
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -23,7 +30,7 @@ import kotlinx.coroutines.launch
  * @DATE: 2/3/2021, Wed
  */
 @AndroidEntryPoint
-class TasksFragment : Fragment(R.layout.fragment_tasks) {
+class TasksFragment : Fragment(R.layout.fragment_tasks), TaskAdapter.OnItemClickListener {
 
     private val viewModel: TaskViewModel by viewModels()
 
@@ -32,17 +39,59 @@ class TasksFragment : Fragment(R.layout.fragment_tasks) {
 
         val binding = FragmentTasksBinding.bind(view)
 
-        val taskAdapter = TaskAdapter()
+        val taskAdapter = TaskAdapter(this)
         binding.apply {
             recyclerViewTasks.apply {
                 adapter = taskAdapter
                 layoutManager = LinearLayoutManager(requireContext())
                 setHasFixedSize(true)
             }
+
+            ItemTouchHelper(object :
+                ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ): Boolean = false
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val task = taskAdapter.currentList[viewHolder.adapterPosition]
+                    viewModel.onTaskSwiped(task)
+                }
+            }).attachToRecyclerView(recyclerViewTasks)
+
+            fabAddTask.setOnClickListener {
+                viewModel.onAddNewTaskClick()
+            }
         }
 
         viewModel.tasks.observe(viewLifecycleOwner) { list ->
             taskAdapter.submitList(list)
+        }
+
+        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+            viewModel.taskEvent.collect { event ->
+                when(event){
+                    is TaskViewModel.TaskEvent.showUndoDeleteTaskMessage -> {
+                        Snackbar.make(requireView(), "Task deleted", Snackbar.LENGTH_LONG)
+                            .setAction("UNDO"){
+                                viewModel.onUndoDeleteClick(event.task)
+                            }
+                            .show()
+                    }
+                    is TaskViewModel.TaskEvent.NavigateToAddTaskScreen -> {
+                        val action = TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(null, "New Task")
+                        findNavController().navigate(action)
+                    }
+                    is TaskViewModel.TaskEvent.NavigateToEditTaskScreen -> {
+                        val action = TasksFragmentDirections.actionTasksFragmentToAddEditTaskFragment(event.task, "Edit Task")
+                        findNavController().navigate(action)
+                    }
+
+                }.exhaustive
+            }
         }
 
         setHasOptionsMenu(true)
@@ -92,5 +141,13 @@ class TasksFragment : Fragment(R.layout.fragment_tasks) {
             }
 
         }
+    }
+
+    override fun onItemClick(task: Task) {
+        viewModel.onTaskSelected(task)
+    }
+
+    override fun onCheckBoxClick(task: Task, isChecked: Boolean) {
+        viewModel.onTaskCheckedChanged(task, isChecked)
     }
 }
