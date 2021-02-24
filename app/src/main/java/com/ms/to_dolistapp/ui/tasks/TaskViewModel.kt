@@ -1,6 +1,5 @@
 package com.ms.to_dolistapp.ui.tasks
 
-import android.app.Activity
 import androidx.hilt.Assisted
 import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.*
@@ -11,7 +10,6 @@ import com.ms.to_dolistapp.data.TaskDao
 import com.ms.to_dolistapp.ui.ADD_TASK_RESULT_OK
 import com.ms.to_dolistapp.ui.EDIT_TASK_RESULT_OK
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -80,7 +78,7 @@ class TaskViewModel @ViewModelInject constructor(
     }
 
     fun onAddEditResult(result: Int) {
-        when(result){
+        when (result) {
             ADD_TASK_RESULT_OK -> {
                 showTaskSaveConfirmationMsg("Task Added")
             }
@@ -90,8 +88,12 @@ class TaskViewModel @ViewModelInject constructor(
         }
     }
 
-    private fun showTaskSaveConfirmationMsg(msg: String)= viewModelScope.launch {
+    private fun showTaskSaveConfirmationMsg(msg: String) = viewModelScope.launch {
         taskEventChannel.send(TaskEvent.showTaskSavedConfirmationMsg(msg))
+    }
+
+    fun onDeleteAllCompletedTaskClick() = viewModelScope.launch {
+        taskEventChannel.send(TaskEvent.NavigateToDeletedAllCompletedScreen)
     }
 
     val tasks = taskFlow.asLiveData()
@@ -102,6 +104,7 @@ class TaskViewModel @ViewModelInject constructor(
         data class NavigateToEditTaskScreen(val task: Task) : TaskEvent()
         data class showUndoDeleteTaskMessage(val task: Task) : TaskEvent()
         data class showTaskSavedConfirmationMsg(val msg: String) : TaskEvent()
+        object NavigateToDeletedAllCompletedScreen: TaskEvent()
     }
 }
 
